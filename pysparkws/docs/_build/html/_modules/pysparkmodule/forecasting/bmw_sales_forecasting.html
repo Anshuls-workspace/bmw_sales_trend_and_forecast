@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pysparkmodule.forecasting.bmw_sales_forecasting &mdash; BMW Sales Data Pipeline 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            BMW Sales Data Pipeline
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../etl_pipeline.html">ETL Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../forecasting.html">Forecasting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../infrastructure.html">Infrastructure and Data Platform</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_reference.html">API and Module Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">BMW Sales Data Pipeline</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">pysparkmodule.forecasting.bmw_sales_forecasting</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for pysparkmodule.forecasting.bmw_sales_forecasting</h1><div class="highlight"><pre>
+<span></span><span class="c1"># bmw_sales_forecast.py</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">train_test_split</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">mean_absolute_error</span><span class="p">,</span> <span class="n">mean_squared_error</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">xgboost</span><span class="w"> </span><span class="kn">import</span> <span class="n">XGBRegressor</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../api_reference.html#pysparkmodule.forecasting.bmw_sales_forecasting.main">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Build the monthly sales dataset and forecast the next month's revenue."""</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 1. Paths</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="c1"># __file__ = .../pysparkws/src/pysparkmodule/forecasting/bmw_sales_forecasting.py</span>
+    <span class="c1"># parents[3] =&gt; .../pysparkws</span>
+    <span class="n">PROJECT_ROOT</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">DATA_DIR</span> <span class="o">=</span> <span class="n">PROJECT_ROOT</span> <span class="o">/</span> <span class="s2">"src"</span> <span class="o">/</span> <span class="s2">"pysparkmodule"</span> <span class="o">/</span> <span class="s2">"data"</span>
+    <span class="n">INPUT_PARQUET</span> <span class="o">=</span> <span class="n">DATA_DIR</span> <span class="o">/</span> <span class="s2">"bmw_sales_cleaned.parquet"</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">INPUT_PARQUET</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Cleaned parquet file not found at: </span><span class="si">{</span><span class="n">INPUT_PARQUET</span><span class="si">}</span><span class="s2">. "</span>
+            <span class="s2">"Check that the PySpark ETL has run and created the file in "</span>
+            <span class="s2">"pysparkws/src/pysparkmodule/data/."</span>
+        <span class="p">)</span>
+
+    <span class="n">MONTHLY_DATASET_PATH</span> <span class="o">=</span> <span class="n">DATA_DIR</span> <span class="o">/</span> <span class="s2">"bmw_monthly_sales_dataset.csv"</span>
+    <span class="n">FORECAST_OUTPUT_PATH</span> <span class="o">=</span> <span class="n">DATA_DIR</span> <span class="o">/</span> <span class="s2">"bmw_next_month_forecast.csv"</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 2. Load cleaned data</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">INPUT_PARQUET</span><span class="p">)</span>
+
+    <span class="c1"># Keep original pipeline untouched:</span>
+    <span class="c1"># we read only, we do not overwrite or modify the source Parquet</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">"sale_date"</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">"sale_date"</span><span class="p">])</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">"sale_month"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"sale_date"</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">to_period</span><span class="p">(</span><span class="s2">"M"</span><span class="p">)</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">to_timestamp</span><span class="p">()</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 3. Build monthly aggregate dataset</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">monthly_df</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">"model"</span><span class="p">,</span> <span class="s2">"region"</span><span class="p">,</span> <span class="s2">"sale_month"</span><span class="p">],</span> <span class="n">as_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+          <span class="o">.</span><span class="n">agg</span><span class="p">(</span>
+              <span class="n">monthly_revenue</span><span class="o">=</span><span class="p">(</span><span class="s2">"revenue"</span><span class="p">,</span> <span class="s2">"sum"</span><span class="p">),</span>
+              <span class="n">monthly_units</span><span class="o">=</span><span class="p">(</span><span class="s2">"quantity"</span><span class="p">,</span> <span class="s2">"sum"</span><span class="p">)</span>
+          <span class="p">)</span>
+          <span class="o">.</span><span class="n">sort_values</span><span class="p">([</span><span class="s2">"model"</span><span class="p">,</span> <span class="s2">"region"</span><span class="p">,</span> <span class="s2">"sale_month"</span><span class="p">])</span>
+          <span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="n">monthly_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">MONTHLY_DATASET_PATH</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Monthly dataset saved to: </span><span class="si">{</span><span class="n">MONTHLY_DATASET_PATH</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 4. Feature engineering</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_lag_features</span><span class="p">(</span><span class="n">group</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">"sale_month"</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue_lag_1"</span><span class="p">]</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue"</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue_lag_2"</span><span class="p">]</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue"</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue_lag_3"</span><span class="p">]</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue"</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue_lag_6"</span><span class="p">]</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue"</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+        <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue_lag_12"</span><span class="p">]</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue"</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="mi">12</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">12</span><span class="p">]:</span>
+            <span class="n">group</span><span class="p">[</span><span class="sa">f</span><span class="s2">"rolling_mean_</span><span class="si">{</span><span class="n">w</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue"</span><span class="p">]</span>
+                <span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="o">.</span><span class="n">rolling</span><span class="p">(</span><span class="n">window</span><span class="o">=</span><span class="n">w</span><span class="p">,</span> <span class="n">min_periods</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="p">)</span>
+
+        <span class="n">group</span><span class="p">[</span><span class="s2">"month"</span><span class="p">]</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"sale_month"</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">month</span>
+        <span class="n">group</span><span class="p">[</span><span class="s2">"year"</span><span class="p">]</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"sale_month"</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">year</span>
+        <span class="n">group</span><span class="p">[</span><span class="s2">"month_sin"</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">group</span><span class="p">[</span><span class="s2">"month"</span><span class="p">]</span> <span class="o">/</span> <span class="mi">12</span><span class="p">)</span>
+        <span class="n">group</span><span class="p">[</span><span class="s2">"month_cos"</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">group</span><span class="p">[</span><span class="s2">"month"</span><span class="p">]</span> <span class="o">/</span> <span class="mi">12</span><span class="p">)</span>
+
+        <span class="n">group</span><span class="p">[</span><span class="s2">"trend"</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">group</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">group</span>
+
+    <span class="n">feature_frames</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">monthly_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">"model"</span><span class="p">,</span> <span class="s2">"region"</span><span class="p">],</span> <span class="n">group_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">encoded_group</span> <span class="o">=</span> <span class="n">add_lag_features</span><span class="p">(</span><span class="n">group</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+        <span class="n">encoded_group</span><span class="p">[</span><span class="s2">"region_code"</span><span class="p">]</span> <span class="o">=</span> <span class="n">encoded_group</span><span class="p">[</span><span class="s2">"region"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"category"</span><span class="p">)</span><span class="o">.</span><span class="n">cat</span><span class="o">.</span><span class="n">codes</span>
+        <span class="n">encoded_group</span><span class="p">[</span><span class="s2">"model_code"</span><span class="p">]</span> <span class="o">=</span> <span class="n">encoded_group</span><span class="p">[</span><span class="s2">"model"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"category"</span><span class="p">)</span><span class="o">.</span><span class="n">cat</span><span class="o">.</span><span class="n">codes</span>
+        <span class="n">feature_frames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">encoded_group</span><span class="p">)</span>
+
+    <span class="n">feature_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">feature_frames</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">feature_df</span> <span class="o">=</span> <span class="n">feature_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span>
+        <span class="s2">"monthly_revenue_lag_1"</span><span class="p">,</span>
+        <span class="s2">"monthly_revenue_lag_2"</span><span class="p">,</span>
+        <span class="s2">"monthly_revenue_lag_3"</span><span class="p">,</span>
+        <span class="s2">"monthly_revenue_lag_6"</span><span class="p">,</span>
+        <span class="s2">"monthly_revenue_lag_12"</span>
+    <span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 5. Train/validation split</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">target_col</span> <span class="o">=</span> <span class="s2">"monthly_revenue"</span>
+
+    <span class="n">feature_columns</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">"monthly_revenue_lag_1"</span><span class="p">,</span>
+        <span class="s2">"monthly_revenue_lag_2"</span><span class="p">,</span>
+        <span class="s2">"monthly_revenue_lag_3"</span><span class="p">,</span>
+        <span class="s2">"monthly_revenue_lag_6"</span><span class="p">,</span>
+        <span class="s2">"monthly_revenue_lag_12"</span><span class="p">,</span>
+        <span class="s2">"rolling_mean_3"</span><span class="p">,</span>
+        <span class="s2">"rolling_mean_6"</span><span class="p">,</span>
+        <span class="s2">"rolling_mean_12"</span><span class="p">,</span>
+        <span class="s2">"month"</span><span class="p">,</span>
+        <span class="s2">"year"</span><span class="p">,</span>
+        <span class="s2">"month_sin"</span><span class="p">,</span>
+        <span class="s2">"month_cos"</span><span class="p">,</span>
+        <span class="s2">"trend"</span><span class="p">,</span>
+        <span class="s2">"region_code"</span><span class="p">,</span>
+        <span class="s2">"model_code"</span>
+    <span class="p">]</span>
+
+    <span class="n">X</span> <span class="o">=</span> <span class="n">feature_df</span><span class="p">[</span><span class="n">feature_columns</span><span class="p">]</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">feature_df</span><span class="p">[</span><span class="n">target_col</span><span class="p">]</span>
+
+    <span class="n">X_train</span><span class="p">,</span> <span class="n">X_val</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_val</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span>
+        <span class="n">X</span><span class="p">,</span>
+        <span class="n">y</span><span class="p">,</span>
+        <span class="n">test_size</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
+        <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">XGBRegressor</span><span class="p">(</span>
+        <span class="n">n_estimators</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span>
+        <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+        <span class="n">max_depth</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+        <span class="n">subsample</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span>
+        <span class="n">colsample_bytree</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span>
+    <span class="p">)</span>
+
+    <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 6. Evaluate on validation</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">val_pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_val</span><span class="p">)</span>
+    <span class="n">mae</span> <span class="o">=</span> <span class="n">mean_absolute_error</span><span class="p">(</span><span class="n">y_val</span><span class="p">,</span> <span class="n">val_pred</span><span class="p">)</span>
+    <span class="n">rmse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mean_squared_error</span><span class="p">(</span><span class="n">y_val</span><span class="p">,</span> <span class="n">val_pred</span><span class="p">))</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Validation MAE: </span><span class="si">{</span><span class="n">mae</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Validation RMSE: </span><span class="si">{</span><span class="n">rmse</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 7. Forecast next month</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_next_month_row</span><span class="p">(</span><span class="n">group</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">"sale_month"</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="n">last_row</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">next_month</span> <span class="o">=</span> <span class="n">last_row</span><span class="p">[</span><span class="s2">"sale_month"</span><span class="p">]</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">DateOffset</span><span class="p">(</span><span class="n">months</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">history</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"monthly_revenue"</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="n">lag_1</span> <span class="o">=</span> <span class="n">history</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">lag_2</span> <span class="o">=</span> <span class="n">history</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">lag_3</span> <span class="o">=</span> <span class="n">history</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">3</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">lag_6</span> <span class="o">=</span> <span class="n">history</span><span class="p">[</span><span class="o">-</span><span class="mi">6</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">6</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">lag_12</span> <span class="o">=</span> <span class="n">history</span><span class="p">[</span><span class="o">-</span><span class="mi">12</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">12</span> <span class="k">else</span> <span class="mi">0</span>
+
+        <span class="n">rolling_3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">history</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">history</span><span class="p">)</span>
+        <span class="n">rolling_6</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">history</span><span class="p">[</span><span class="o">-</span><span class="mi">6</span><span class="p">:])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">6</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">history</span><span class="p">)</span>
+        <span class="n">rolling_12</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">history</span><span class="p">[</span><span class="o">-</span><span class="mi">12</span><span class="p">:])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">12</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">history</span><span class="p">)</span>
+
+        <span class="n">month</span> <span class="o">=</span> <span class="n">next_month</span><span class="o">.</span><span class="n">month</span>
+
+        <span class="n">next_row</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([{</span>
+            <span class="s2">"sale_month"</span><span class="p">:</span> <span class="n">next_month</span><span class="p">,</span>
+            <span class="s2">"model"</span><span class="p">:</span> <span class="n">last_row</span><span class="p">[</span><span class="s2">"model"</span><span class="p">],</span>
+            <span class="s2">"region"</span><span class="p">:</span> <span class="n">last_row</span><span class="p">[</span><span class="s2">"region"</span><span class="p">],</span>
+            <span class="s2">"monthly_revenue_lag_1"</span><span class="p">:</span> <span class="n">lag_1</span><span class="p">,</span>
+            <span class="s2">"monthly_revenue_lag_2"</span><span class="p">:</span> <span class="n">lag_2</span><span class="p">,</span>
+            <span class="s2">"monthly_revenue_lag_3"</span><span class="p">:</span> <span class="n">lag_3</span><span class="p">,</span>
+            <span class="s2">"monthly_revenue_lag_6"</span><span class="p">:</span> <span class="n">lag_6</span><span class="p">,</span>
+            <span class="s2">"monthly_revenue_lag_12"</span><span class="p">:</span> <span class="n">lag_12</span><span class="p">,</span>
+            <span class="s2">"rolling_mean_3"</span><span class="p">:</span> <span class="n">rolling_3</span><span class="p">,</span>
+            <span class="s2">"rolling_mean_6"</span><span class="p">:</span> <span class="n">rolling_6</span><span class="p">,</span>
+            <span class="s2">"rolling_mean_12"</span><span class="p">:</span> <span class="n">rolling_12</span><span class="p">,</span>
+            <span class="s2">"month"</span><span class="p">:</span> <span class="n">month</span><span class="p">,</span>
+            <span class="s2">"year"</span><span class="p">:</span> <span class="n">next_month</span><span class="o">.</span><span class="n">year</span><span class="p">,</span>
+            <span class="s2">"month_sin"</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">month</span> <span class="o">/</span> <span class="mi">12</span><span class="p">),</span>
+            <span class="s2">"month_cos"</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">month</span> <span class="o">/</span> <span class="mi">12</span><span class="p">),</span>
+            <span class="s2">"trend"</span><span class="p">:</span> <span class="n">group</span><span class="p">[</span><span class="s2">"trend"</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">"region_code"</span><span class="p">:</span> <span class="n">last_row</span><span class="p">[</span><span class="s2">"region_code"</span><span class="p">],</span>
+            <span class="s2">"model_code"</span><span class="p">:</span> <span class="n">last_row</span><span class="p">[</span><span class="s2">"model_code"</span><span class="p">],</span>
+        <span class="p">}])</span>
+
+        <span class="k">return</span> <span class="n">next_row</span>
+
+    <span class="n">forecast_rows</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">feature_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">"model"</span><span class="p">,</span> <span class="s2">"region"</span><span class="p">]):</span>
+        <span class="n">next_row</span> <span class="o">=</span> <span class="n">build_next_month_row</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+        <span class="n">forecast_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">next_row</span><span class="p">)</span>
+
+    <span class="n">forecast_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">forecast_rows</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">forecast_df</span><span class="p">[</span><span class="s2">"forecast_revenue"</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">forecast_df</span><span class="p">[</span><span class="n">feature_columns</span><span class="p">])</span>
+
+    <span class="n">forecast_df</span> <span class="o">=</span> <span class="n">forecast_df</span><span class="p">[[</span>
+        <span class="s2">"sale_month"</span><span class="p">,</span>
+        <span class="s2">"model"</span><span class="p">,</span>
+        <span class="s2">"region"</span><span class="p">,</span>
+        <span class="s2">"forecast_revenue"</span>
+    <span class="p">]]</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">"sale_month"</span><span class="p">:</span> <span class="s2">"forecast_month"</span><span class="p">,</span>
+        <span class="s2">"forecast_revenue"</span><span class="p">:</span> <span class="s2">"predicted_revenue"</span>
+    <span class="p">})</span>
+
+    <span class="n">forecast_df</span><span class="p">[</span><span class="s2">"created_at"</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+    <span class="n">forecast_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">FORECAST_OUTPUT_PATH</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Forecast saved to: </span><span class="si">{</span><span class="n">FORECAST_OUTPUT_PATH</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 8. Display result</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Forecast preview:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">forecast_df</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

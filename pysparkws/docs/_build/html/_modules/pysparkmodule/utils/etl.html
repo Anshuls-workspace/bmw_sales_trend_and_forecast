@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pysparkmodule.utils.etl &mdash; BMW Sales Data Pipeline 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            BMW Sales Data Pipeline
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../etl_pipeline.html">ETL Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../forecasting.html">Forecasting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../infrastructure.html">Infrastructure and Data Platform</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_reference.html">API and Module Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">BMW Sales Data Pipeline</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">pysparkmodule.utils.etl</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for pysparkmodule.utils.etl</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ---------------------------------------------------------</span>
+<span class="c1"># Create PySpark session</span>
+<span class="c1"># ---------------------------------------------------------</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparkSession</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.functions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">col</span><span class="p">,</span>
+    <span class="n">when</span><span class="p">,</span>
+    <span class="n">year</span><span class="p">,</span>
+    <span class="n">month</span><span class="p">,</span>
+    <span class="n">trim</span><span class="p">,</span>
+    <span class="n">upper</span><span class="p">,</span>
+    <span class="n">initcap</span>
+<span class="p">)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.types</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">StringType</span><span class="p">,</span>
+    <span class="n">IntegerType</span><span class="p">,</span>
+    <span class="n">DoubleType</span><span class="p">,</span>
+    <span class="n">DateType</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../api_reference.html#pysparkmodule.utils.etl.main">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Run the BMW sales ETL pipeline."""</span>
+    <span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">builder</span> \
+        <span class="o">.</span><span class="n">appName</span><span class="p">(</span><span class="s2">"BMW Sales ETL Application"</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.executor.memory"</span><span class="p">,</span> <span class="s2">"2g"</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.driver.memory"</span><span class="p">,</span> <span class="s2">"2g"</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.sql.shuffle.partitions"</span><span class="p">,</span> <span class="s2">"4"</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">master</span><span class="p">(</span><span class="s2">"local[*]"</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># Project paths</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">PROJECT_ROOT</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="n">DATA_PATH</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">PROJECT_ROOT</span>
+        <span class="o">/</span> <span class="s2">"src"</span>
+        <span class="o">/</span> <span class="s2">"pysparkmodule"</span>
+        <span class="o">/</span> <span class="s2">"data"</span>
+        <span class="o">/</span> <span class="s2">"bmw_sales_records.csv"</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># Read sales data from CSV</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">csv</span><span class="p">(</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">DATA_PATH</span><span class="p">),</span>
+        <span class="n">header</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">inferSchema</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Raw Data:"</span><span class="p">)</span>
+    <span class="n">sales_df</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">truncate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Raw Schema:"</span><span class="p">)</span>
+    <span class="n">sales_df</span><span class="o">.</span><span class="n">printSchema</span><span class="p">()</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 1. DEFINE PROPER DATA TYPES</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"sale_id"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"sale_id"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">()))</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"vehicle_id"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"vehicle_id"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">()))</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"dealer_id"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"dealer_id"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">()))</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"customer_id"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"customer_id"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">()))</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"sale_date"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"sale_date"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DateType</span><span class="p">()))</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"model"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"model"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">()))</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"region"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"region"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">StringType</span><span class="p">()))</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"price"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"price"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DoubleType</span><span class="p">()))</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"quantity"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"quantity"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">IntegerType</span><span class="p">()))</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 2. HANDLE MISSING VALUES</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span>
+        <span class="n">subset</span><span class="o">=</span><span class="p">[</span>
+            <span class="s2">"sale_id"</span><span class="p">,</span>
+            <span class="s2">"vehicle_id"</span><span class="p">,</span>
+            <span class="s2">"dealer_id"</span><span class="p">,</span>
+            <span class="s2">"customer_id"</span><span class="p">,</span>
+            <span class="s2">"sale_date"</span><span class="p">,</span>
+            <span class="s2">"model"</span><span class="p">,</span>
+            <span class="s2">"region"</span><span class="p">,</span>
+            <span class="s2">"price"</span><span class="p">,</span>
+            <span class="s2">"quantity"</span>
+        <span class="p">]</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 3. REMOVE DUPLICATE RECORDS</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">dropDuplicates</span><span class="p">([</span><span class="s2">"sale_id"</span><span class="p">])</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 4. VALIDATE SALE ID</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="s2">"sale_id"</span><span class="p">,</span>
+        <span class="n">when</span><span class="p">(</span>
+            <span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"sale_id"</span><span class="p">))</span> <span class="o">!=</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"sale_id"</span><span class="p">))</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">"sale_id"</span><span class="p">])</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 5. VALIDATE VEHICLE ID</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="s2">"vehicle_id"</span><span class="p">,</span>
+        <span class="n">when</span><span class="p">(</span>
+            <span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"vehicle_id"</span><span class="p">))</span> <span class="o">!=</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"vehicle_id"</span><span class="p">))</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">"vehicle_id"</span><span class="p">])</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 6. VALIDATE DEALER ID</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="s2">"dealer_id"</span><span class="p">,</span>
+        <span class="n">when</span><span class="p">(</span>
+            <span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"dealer_id"</span><span class="p">))</span> <span class="o">!=</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"dealer_id"</span><span class="p">))</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">"dealer_id"</span><span class="p">])</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 7. VALIDATE CUSTOMER ID</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="s2">"customer_id"</span><span class="p">,</span>
+        <span class="n">when</span><span class="p">(</span>
+            <span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"customer_id"</span><span class="p">))</span> <span class="o">!=</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"customer_id"</span><span class="p">))</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">"customer_id"</span><span class="p">])</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 8. VALIDATE QUANTITY</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="s2">"quantity"</span><span class="p">,</span>
+        <span class="n">when</span><span class="p">(</span>
+            <span class="n">col</span><span class="p">(</span><span class="s2">"quantity"</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">col</span><span class="p">(</span><span class="s2">"quantity"</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">"quantity"</span><span class="p">])</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 9. VALIDATE PRICE</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="s2">"price"</span><span class="p">,</span>
+        <span class="n">when</span><span class="p">(</span>
+            <span class="n">col</span><span class="p">(</span><span class="s2">"price"</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">col</span><span class="p">(</span><span class="s2">"price"</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">"price"</span><span class="p">])</span>
+
+
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 10. CALCULATE REVENUE</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="c1"># Revenue is not present in the raw dataset.</span>
+    <span class="c1">#</span>
+    <span class="c1"># Revenue = price × quantity</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="s2">"revenue"</span><span class="p">,</span>
+        <span class="n">col</span><span class="p">(</span><span class="s2">"price"</span><span class="p">)</span> <span class="o">*</span> <span class="n">col</span><span class="p">(</span><span class="s2">"quantity"</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 11. EXTRACT YEAR AND MONTH</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="s2">"sale_year"</span><span class="p">,</span>
+            <span class="n">year</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"sale_date"</span><span class="p">))</span>
+        <span class="p">)</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="s2">"sale_month"</span><span class="p">,</span>
+            <span class="n">month</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"sale_date"</span><span class="p">))</span>
+        <span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 12. STANDARDIZE MODEL</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="s2">"model"</span><span class="p">,</span>
+        <span class="n">upper</span><span class="p">(</span><span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"model"</span><span class="p">)))</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 13. STANDARDIZE REGION</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="s2">"region"</span><span class="p">,</span>
+        <span class="n">initcap</span><span class="p">(</span><span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"region"</span><span class="p">)))</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 14. STANDARDIZE IDs</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"vehicle_id"</span><span class="p">,</span> <span class="n">upper</span><span class="p">(</span><span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"vehicle_id"</span><span class="p">))))</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"dealer_id"</span><span class="p">,</span> <span class="n">upper</span><span class="p">(</span><span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"dealer_id"</span><span class="p">))))</span> \
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"customer_id"</span><span class="p">,</span> <span class="n">upper</span><span class="p">(</span><span class="n">trim</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"customer_id"</span><span class="p">))))</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># 15. FINAL COLUMN SELECTION</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">sales_df</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+        <span class="s2">"sale_id"</span><span class="p">,</span>
+        <span class="s2">"vehicle_id"</span><span class="p">,</span>
+        <span class="s2">"dealer_id"</span><span class="p">,</span>
+        <span class="s2">"customer_id"</span><span class="p">,</span>
+        <span class="s2">"sale_date"</span><span class="p">,</span>
+        <span class="s2">"sale_year"</span><span class="p">,</span>
+        <span class="s2">"sale_month"</span><span class="p">,</span>
+        <span class="s2">"model"</span><span class="p">,</span>
+        <span class="s2">"region"</span><span class="p">,</span>
+        <span class="s2">"price"</span><span class="p">,</span>
+        <span class="s2">"quantity"</span><span class="p">,</span>
+        <span class="s2">"revenue"</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># Display cleaned data</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Cleaned Data:"</span><span class="p">)</span>
+    <span class="n">sales_df</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="n">truncate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># Display final schema</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Final Schema:"</span><span class="p">)</span>
+    <span class="n">sales_df</span><span class="o">.</span><span class="n">printSchema</span><span class="p">()</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># Basic validation</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Total Cleaned Records:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">sales_df</span><span class="o">.</span><span class="n">count</span><span class="p">())</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Duplicate sale IDs:"</span><span class="p">)</span>
+    <span class="n">duplicate_sale_ids</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">sales_df</span>
+        <span class="o">.</span><span class="n">groupBy</span><span class="p">(</span><span class="s2">"sale_id"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">count</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"count"</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">count</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">duplicate_sale_ids</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Invalid quantity:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">sales_df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"quantity"</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">())</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Invalid price:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">sales_df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"price"</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">())</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Invalid revenue:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">sales_df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"revenue"</span><span class="p">)</span> <span class="o">!=</span> <span class="n">col</span><span class="p">(</span><span class="s2">"price"</span><span class="p">)</span> <span class="o">*</span> <span class="n">col</span><span class="p">(</span><span class="s2">"quantity"</span><span class="p">))</span><span class="o">.</span><span class="n">count</span><span class="p">())</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Null values:"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="n">null_count</span> <span class="o">=</span> <span class="n">sales_df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">())</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">null_count</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># Save cleaned data as Parquet</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="n">OUTPUT_PATH</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">PROJECT_ROOT</span>
+        <span class="o">/</span> <span class="s2">"src"</span>
+        <span class="o">/</span> <span class="s2">"pysparkmodule"</span>
+        <span class="o">/</span> <span class="s2">"data"</span>
+        <span class="o">/</span> <span class="s2">"bmw_sales_cleaned.parquet"</span>
+    <span class="p">)</span>
+
+    <span class="n">sales_df</span><span class="o">.</span><span class="n">toPandas</span><span class="p">()</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">OUTPUT_PATH</span><span class="p">),</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Cleaned data saved successfully!"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Output file: </span><span class="si">{</span><span class="n">OUTPUT_PATH</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="c1"># ---------------------------------------------------------</span>
+    <span class="c1"># Show PySpark UI</span>
+    <span class="c1"># ---------------------------------------------------------</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">PySpark UI is available at: http://localhost:4040"</span><span class="p">)</span>
+    <span class="nb">input</span><span class="p">(</span><span class="s2">"Press Enter to exit..."</span><span class="p">)</span>
+    <span class="n">spark</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ETL Pipeline &mdash; BMW Sales Data Pipeline 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=8d563738"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Forecasting" href="forecasting.html" />
+    <link rel="prev" title="Architecture" href="architecture.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            BMW Sales Data Pipeline
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">ETL Pipeline</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#purpose">Purpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#input-and-output">Input and output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#transformation-steps">Transformation steps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-logic-areas">Key logic areas</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#type-definition">Type definition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#validation">Validation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#output-contract">Output contract</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="forecasting.html">Forecasting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="infrastructure.html">Infrastructure and Data Platform</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API and Module Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">BMW Sales Data Pipeline</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">ETL Pipeline</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/etl_pipeline.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="etl-pipeline">
+<h1>ETL Pipeline<a class="headerlink" href="#etl-pipeline" title="Link to this heading"></a></h1>
+<p>The ETL pipeline in this project is responsible for cleaning and validating the raw BMW sales dataset before it is stored for analysis.</p>
+<section id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Link to this heading"></a></h2>
+<p>The ETL workflow ensures that sales data is:</p>
+<ul class="simple">
+<li><p>structurally valid</p></li>
+<li><p>free of duplicates</p></li>
+<li><p>free of missing critical identifiers</p></li>
+<li><p>numeric where required</p></li>
+<li><p>ready for warehouse ingestion and reporting</p></li>
+</ul>
+</section>
+<section id="input-and-output">
+<h2>Input and output<a class="headerlink" href="#input-and-output" title="Link to this heading"></a></h2>
+<p>The ETL job reads the raw CSV file from:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>src/pysparkmodule/data/bmw_sales_records.csv
+</pre></div>
+</div>
+<p>After cleaning, it writes the processed Parquet file to:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>src/pysparkmodule/data/bmw_sales_cleaned.parquet
+</pre></div>
+</div>
+</section>
+<section id="transformation-steps">
+<h2>Transformation steps<a class="headerlink" href="#transformation-steps" title="Link to this heading"></a></h2>
+<p>The cleaning flow performs the following tasks:</p>
+<ul class="simple">
+<li><p>cast columns to the correct data types</p></li>
+<li><p>validate required identifiers and timestamps</p></li>
+<li><p>trim blank values</p></li>
+<li><p>drop incomplete rows</p></li>
+<li><p>remove duplicate sale records</p></li>
+<li><p>keep only valid price and quantity values</p></li>
+<li><p>calculate derived values for downstream analytics</p></li>
+</ul>
+</section>
+<section id="key-logic-areas">
+<h2>Key logic areas<a class="headerlink" href="#key-logic-areas" title="Link to this heading"></a></h2>
+<section id="type-definition">
+<h3>Type definition<a class="headerlink" href="#type-definition" title="Link to this heading"></a></h3>
+<p>Important fields are cast to the correct types before analysis, including:</p>
+<ul class="simple">
+<li><p>sale_id</p></li>
+<li><p>vehicle_id</p></li>
+<li><p>dealer_id</p></li>
+<li><p>customer_id</p></li>
+<li><p>sale_date</p></li>
+<li><p>model</p></li>
+<li><p>region</p></li>
+<li><p>price</p></li>
+<li><p>quantity</p></li>
+</ul>
+</section>
+<section id="validation">
+<h3>Validation<a class="headerlink" href="#validation" title="Link to this heading"></a></h3>
+<p>The pipeline rejects rows that contain:</p>
+<ul class="simple">
+<li><p>missing sale identifiers</p></li>
+<li><p>invalid quantity values</p></li>
+<li><p>invalid or zero prices</p></li>
+<li><p>empty critical business fields</p></li>
+</ul>
+</section>
+</section>
+<section id="output-contract">
+<h2>Output contract<a class="headerlink" href="#output-contract" title="Link to this heading"></a></h2>
+<p>The cleaned Parquet dataset is expected to contain these fields:</p>
+<ul class="simple">
+<li><p>sale_id</p></li>
+<li><p>vehicle_id</p></li>
+<li><p>dealer_id</p></li>
+<li><p>customer_id</p></li>
+<li><p>sale_date</p></li>
+<li><p>sale_year</p></li>
+<li><p>sale_month</p></li>
+<li><p>model</p></li>
+<li><p>region</p></li>
+<li><p>price</p></li>
+<li><p>quantity</p></li>
+<li><p>revenue</p></li>
+</ul>
+<p>This contract is important because downstream systems such as Snowflake and the forecasting model rely on this consistent schema.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="architecture.html" class="btn btn-neutral float-left" title="Architecture" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="forecasting.html" class="btn btn-neutral float-right" title="Forecasting" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
