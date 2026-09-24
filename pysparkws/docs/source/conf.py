@@ -32,4 +32,6 @@ autodoc_mock_imports = [
     "pyspark",
     "sklearn",
     "xgboost",
+    "numpy",
+    "pandas",
 ]
