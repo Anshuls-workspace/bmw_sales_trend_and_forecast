@@ -16,7 +16,7 @@ The goal of the project is to:
 
 ## Architecture overview
 
-```mermaid
+```mermaid-
 flowchart LR
     A[Raw BMW CSV] --> B[PySpark ETL]
     B --> C[Cleaned Parquet]
